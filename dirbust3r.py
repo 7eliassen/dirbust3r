@@ -4,6 +4,7 @@ from rich.text import Text
 import argparse
 from sys import exit
 from rich.progress import Progress
+from fake_useragent import UserAgent
 
 
 def main():
@@ -12,6 +13,8 @@ def main():
     parser.add_argument('-w', '--wordlist', type=str, help='wordlist to use')
     parser.add_argument('-r', '--robots', action='store_true', help='include robots.txt file', default=False)
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose mode', default=False)
+    parser.add_argument('-t', '--threads', type=int, help='number of threads to use', default=5)
+
     args = parser.parse_args()
 
     hello()
@@ -19,7 +22,14 @@ def main():
     url = refactor_url(args.url)
     print_info(f"URL: {url}")
 
-    if not check_url(url):
+    ua = UserAgent()
+    random_ua = ua.random
+
+    headers = {
+        "User-Agent": random_ua
+    }
+
+    if not check_url(url, headers):
         print_error(f"Invalid URL: {url}")
         exit(1)
 
@@ -28,7 +38,7 @@ def main():
         pages += import_from_dict(args.wordlist)
 
     if args.robots:
-        pages += robots(url)
+        pages += robots(url, headers)
 
     print_info(f"Pages: {len(pages)}")
 
@@ -39,7 +49,7 @@ def main():
         for page in pages:
             for extension in extensions:
                 new_url = f"{url}/{page}{extension}"
-                if check_url(new_url):
+                if check_url(new_url, headers):
                     good_pages.append(new_url)
             progress.update(task, advance=1)
 
@@ -75,14 +85,16 @@ def hello() -> None:
     console.print("made by eliassen", style="bold cyan")
 
 
-def robots(url: str) -> list:
-    response = requests.get(f"{url}/robots.txt")
-    robots_pages = find_lines_with_substring(response.text, "Disallow: ")
-    allows_pages = find_lines_with_substring(response.text, "Allow: ")
-    robots_pages.extend(allows_pages)
-    for i in range(len(robots_pages)):
-        robots_pages[i] = robots_pages[i].replace("Disallow: ", "").replace("/", "")
-    return robots_pages
+def robots(url: str, headers: dict) -> list:
+    if check_url(f"{url}/robots.txt", headers):
+        response = requests.get(f"{url}/robots.txt", headers=headers)
+        robots_pages = find_lines_with_substring(response.text, "Disallow: ")
+        allows_pages = find_lines_with_substring(response.text, "Allow: ")
+        robots_pages.extend(allows_pages)
+        for i in range(len(robots_pages)):
+            robots_pages[i] = robots_pages[i].replace("Disallow: ", "").replace("/", "")
+        return robots_pages
+    else: return []
 
 
 def find_lines_with_substring(text: str, substring: str) -> list:
@@ -98,9 +110,9 @@ def refactor_url(url: str) -> str:
     return url
 
 
-def check_url(url: str) -> bool:
+def check_url(url: str, headers: dict) -> bool:
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=headers)
         return response.status_code == 200
     except requests.exceptions.RequestException:
         return False
@@ -116,6 +128,7 @@ def print_good(message: str) -> None:
 
 def print_info(message: str) -> None:
     console.print(f"[i] {message}", style="bold yellow")
+
 
 
 if __name__ == '__main__':
