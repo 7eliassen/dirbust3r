@@ -1,5 +1,3 @@
-from xmlrpc.client import boolean
-
 from rich.console import Console
 from rich.text import Text
 import argparse
@@ -16,13 +14,22 @@ def main():
 
     hello()
 
+    pages = import_from_dict(args.wordlist)
+
+
     if args.robots:
-        ...
+        robots_pages = robots()
 
 
 
-def import_from_dict():
-    ...
+def import_from_dict(dict: str) -> list:
+    pages = []
+
+    with open(dict, 'r') as f:
+        for line in f:
+            pages.append(line.strip())
+
+    return pages
 
 
 def hello():
