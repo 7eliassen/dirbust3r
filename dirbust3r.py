@@ -4,7 +4,6 @@ from rich.text import Text
 import argparse
 
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--url', type=str, help='url to scan', required=True)
@@ -13,16 +12,16 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity', default=False)
     args = parser.parse_args()
 
+    url = refactor_url(args.url)
+
     hello()
 
     pages = []
     if args.wordlist:
-        pages = import_from_dict(args.wordlist)
-
+        pages += import_from_dict(args.wordlist)
 
     if args.robots:
-        robots_pages = robots(args.url)
-
+        pages += robots(url)
 
 
 def import_from_dict(dictionary: str) -> list:
@@ -35,7 +34,7 @@ def import_from_dict(dictionary: str) -> list:
     return pages
 
 
-def hello():
+def hello() -> None:
     logo_text = """
          _ _      _               _   _____      
       __| (_)_ __| |__  _   _ ___| |_|___ / _ __ 
@@ -57,10 +56,19 @@ def robots(url: str) -> list:
     return dissallow
 
 
-def find_lines_with_substring(text, substring):
+def find_lines_with_substring(text: str, substring: str) -> list:
     lines = text.splitlines()
     matching_lines = [line for line in lines if substring in line]
     return matching_lines
+
+
+def refactor_url(url: str) -> str:
+    if not url.startswith("http"):
+        url = f"http://{url}"
+    return url
+
+
+
 
 if __name__ == '__main__':
     console = Console()
