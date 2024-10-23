@@ -92,7 +92,8 @@ def robots(url: str, headers: dict) -> list:
         allows_pages = find_lines_with_substring(response.text, "Allow: ")
         robots_pages.extend(allows_pages)
         for i in range(len(robots_pages)):
-            robots_pages[i] = robots_pages[i].replace("Disallow: ", "").replace("/", "")
+            robots_pages[i] = robots_pages[i].replace("Disallow: ", "").replace("Allow: ", "").replace("/", "").replace("?", "").replace("*", "").strip()
+        print(robots_pages)
         return robots_pages
     else: return []
 
@@ -128,6 +129,7 @@ def print_good(message: str) -> None:
 
 def print_info(message: str) -> None:
     console.print(f"[i] {message}", style="bold yellow")
+
 
 
 
