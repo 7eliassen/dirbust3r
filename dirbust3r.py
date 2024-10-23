@@ -1,3 +1,4 @@
+import requests
 from rich.console import Console
 from rich.text import Text
 import argparse
@@ -7,25 +8,27 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', '--url', type=str, help='url to scan', required=True)
-    parser.add_argument('-w', '--wordlist', type=str, help='wordlist to use', required=True)
+    parser.add_argument('-w', '--wordlist', type=str, help='wordlist to use')
     parser.add_argument('-r', '--robots', action='store_true', help='include robots.txt file', default=False)
     parser.add_argument('-v', '--verbose', action='store_true', help='increase output verbosity', default=False)
     args = parser.parse_args()
 
     hello()
 
-    pages = import_from_dict(args.wordlist)
+    pages = []
+    if args.wordlist:
+        pages = import_from_dict(args.wordlist)
 
 
     if args.robots:
-        robots_pages = robots()
+        robots_pages = robots(args.url)
 
 
 
-def import_from_dict(dict: str) -> list:
+def import_from_dict(dictionary: str) -> list:
     pages = []
 
-    with open(dict, 'r') as f:
+    with open(dictionary, 'r') as f:
         for line in f:
             pages.append(line.strip())
 
@@ -46,8 +49,18 @@ def hello():
     console.print("made by eliassen", style="bold red")
 
 
-def robots():
-    ...
+def robots(url: str) -> list:
+    response = requests.get(f"http://{url}/robots.txt")
+    dissallow = find_lines_with_substring(response.text, "Disallow: ")
+    for i in range(len(dissallow)):
+        dissallow[i] = dissallow[i].replace("Disallow: ", "").replace("/", "")
+    return dissallow
+
+
+def find_lines_with_substring(text, substring):
+    lines = text.splitlines()
+    matching_lines = [line for line in lines if substring in line]
+    return matching_lines
 
 if __name__ == '__main__':
     console = Console()
