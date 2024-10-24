@@ -5,6 +5,7 @@ import argparse
 from sys import exit
 from rich.progress import Progress
 from fake_useragent import UserAgent
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def main():
@@ -42,16 +43,18 @@ def main():
 
     print_info(f"Pages: {len(pages)}")
 
-    extensions = ["", ".html", ".htm", ".xhtml", ".css", ".js", ".json", ".xml", ".php"]
     good_pages = []
+
     with Progress() as progress:
         task = progress.add_task("[red]Scanning...", total=len(pages))
-        for page in pages:
-            for extension in extensions:
-                new_url = f"{url}/{page}{extension}"
-                if check_url(new_url, headers):
-                    good_pages.append(new_url)
-            progress.update(task, advance=1)
+
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(check_page, page, url, headers): page for page in pages}
+
+            for future in as_completed(futures):
+                result = future.result()
+                good_pages.extend(result)
+                progress.update(task, advance=1)
 
     # remove duplicates
     good_pages = list(dict.fromkeys(good_pages))
@@ -59,6 +62,18 @@ def main():
     print_info(f"Good pages: {len(good_pages)}")
     for good_page in good_pages:
         print_good(f"Found: {good_page}")
+
+
+extensions = ["", ".html", ".htm", ".xhtml", ".css", ".js", ".json", ".xml", ".php"]
+
+
+def check_page(page, url, headers):
+    local_good_pages = []
+    for extension in extensions:
+        new_url = f"{url}/{page}{extension}"
+        if check_url(new_url, headers):
+            local_good_pages.append(new_url)
+    return local_good_pages
 
 
 def import_from_dict(dictionary: str) -> list:
@@ -92,10 +107,12 @@ def robots(url: str, headers: dict) -> list:
         allows_pages = find_lines_with_substring(response.text, "Allow: ")
         robots_pages.extend(allows_pages)
         for i in range(len(robots_pages)):
-            robots_pages[i] = robots_pages[i].replace("Disallow: ", "").replace("Allow: ", "").replace("/", "").replace("?", "").replace("*", "").strip()
+            robots_pages[i] = robots_pages[i].replace("Disallow: ", "").replace("Allow: ", "").replace("/", "").replace(
+                "?", "").replace("*", "").strip()
         print(robots_pages)
         return robots_pages
-    else: return []
+    else:
+        return []
 
 
 def find_lines_with_substring(text: str, substring: str) -> list:
@@ -129,8 +146,6 @@ def print_good(message: str) -> None:
 
 def print_info(message: str) -> None:
     console.print(f"[i] {message}", style="bold yellow")
-
-
 
 
 if __name__ == '__main__':
