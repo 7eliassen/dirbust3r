@@ -5,3 +5,4 @@ templates/
 /.venv/
 /venv/
 *.txt
+*env*
